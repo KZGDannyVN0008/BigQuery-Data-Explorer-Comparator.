@@ -1,0 +1,53 @@
+# Build and deploy to Cloud Run.
+#   gcloud builds submit --config cloudbuild.yaml \
+#     --substitutions=_REGION=asia-southeast1,_SERVICE=bq-data-explorer
+substitutions:
+  _REGION: asia-southeast1
+  _SERVICE: bq-data-explorer
+  _REPO: apps
+  _RUNTIME_SA: bq-explorer-run@${PROJECT_ID}.iam.gserviceaccount.com
+  _ALLOWED_PROJECTS: kz-dp-prod,kz-kura
+  _BIGQUERY_LOCATION: US
+
+steps:
+  - id: build
+    name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - -t
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:latest
+      - .
+
+  - id: push
+    name: gcr.io/cloud-builders/docker
+    args: [push, --all-tags, '${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}']
+
+  - id: deploy
+    name: gcr.io/google.com/cloudsdktool/cloud-sdk
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}:${SHORT_SHA}
+      - --region=${_REGION}
+      - --platform=managed
+      # Private by default. Put IAP or an internal load balancer in front, and
+      # grant run.invoker only to the people who should see warehouse data.
+      - --no-allow-unauthenticated
+      - --service-account=${_RUNTIME_SA}
+      - --cpu=1
+      - --memory=1Gi
+      - --min-instances=0
+      - --max-instances=10
+      - --concurrency=40
+      - --timeout=300
+      - --set-env-vars=GOOGLE_CLOUD_PROJECT=${PROJECT_ID},ALLOWED_PROJECTS=${_ALLOWED_PROJECTS},BIGQUERY_LOCATION=${_BIGQUERY_LOCATION},MAX_BYTES_BILLED=21474836480,DRY_RUN_LIMIT_BYTES=21474836480,MAX_COMPARE_WINDOW_DAYS=92
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPO}/${_SERVICE}
+
+options:
+  logging: CLOUD_LOGGING_ONLY

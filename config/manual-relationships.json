@@ -1,0 +1,22 @@
+{
+  "$comment": "Human-confirmed relationships. Curated by data owners and mounted read-only; the app never writes here. Each entry becomes an edge with confidence 1.0 and source 'manual'.",
+  "relationships": [
+    {
+      "from": "kz-dp-prod.dpp_gold_prod.ph_dpp_deposit_v2_gold",
+      "to": "kz-kura.kura_gold.ph_deposit_v2",
+      "direction": "upstream",
+      "columns": [
+        { "from": "transaction_id", "to": "transaction_id" },
+        { "from": "merchant", "to": "merchant" }
+      ],
+      "note": "Confirmed by the DPP team on 2026-06-18: the gold table is built from the Kura ledger keyed on transaction_id."
+    },
+    {
+      "from": "kz-dp-prod.crm_gold_prod.deposit_transaction_consolidated",
+      "to": "kz-dp-prod.crm_gold_prod.merchant_dim",
+      "direction": "downstream",
+      "columns": [{ "from": "merchant", "to": "merchant" }],
+      "note": "Merchant dimension lookup, confirmed by CRM data owners."
+    }
+  ]
+}
